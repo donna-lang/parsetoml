@@ -215,7 +215,163 @@ body.page-package-docs .ctor-doc p { margin: 0; }
 }</style>
 </head>
 <body class="page-package-docs">
-<div class="theme-corner"><button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch to light theme"><span class="theme-toggle-icon" aria-hidden="true"></span></button></div><button class="sidebar-burger" id="sidebar-burger" aria-label="Menu"><span></span><span></span><span></span></button><div class="layout"><aside class="sidebar" id="page-sidebar"><a href="index.html" class="sidebar-back">&larr; Package overview</a><div class="sidebar-pkg"><div class="sidebar-pkg-name">parsetoml</div><div class="sidebar-pkg-ver">v0.1.0 &middot; API Reference</div></div><div class="sidebar-section-label">parsetoml</div><p class="sidebar-subcat">Types</p><ul class="sidebar-nav"><li><a href="#Parsed" class="fn-link">Parsed</a></li><li><a href="#TomlValue" class="fn-link">TomlValue</a></li></ul><p class="sidebar-subcat">Functions</p><ul class="sidebar-nav"><li><a href="#parse" class="fn-link">parse</a></li><li><a href="#get_string" class="fn-link">get_string</a></li><li><a href="#get_int" class="fn-link">get_int</a></li><li><a href="#get_bool" class="fn-link">get_bool</a></li><li><a href="#get_table" class="fn-link">get_table</a></li><li><a href="#get_array" class="fn-link">get_array</a></li><li><a href="#unwrap_table" class="fn-link">unwrap_table</a></li><li><a href="#unwrap_string" class="fn-link">unwrap_string</a></li><li><a href="#unwrap_int" class="fn-link">unwrap_int</a></li><li><a href="#unwrap_bool" class="fn-link">unwrap_bool</a></li><li><a href="#is_ok" class="fn-link">is_ok</a></li><li><a href="#is_err" class="fn-link">is_err</a></li><li><a href="#err_msg" class="fn-link">err_msg</a></li></ul></aside><div class="spacer" aria-hidden="true"></div><main class="main"><div class="breadcrumb"><a href="index.html">parsetoml</a><span>/</span><span>Docs</span></div><div class="page-head"><h1><span>parsetoml</span> &mdash; API Reference</h1><p>TOML parsing for Donna</p><div class="ver-row"><span class="ver-chip current">v0.1.0</span><span class="ver-chip">MIT</span><a href="https://github.com/donna-lang/parsetoml" class="ver-chip ver-chip-link">Repository &rarr;</a></div></div><section class="module-section" id="parsetoml"><h2>parsetoml</h2><div class="items-section"><h3>Types</h3><div class="fn-card" id="Parsed"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub type Parsed(a)</code></pre></div><div class="fn-card-body"><div class="ctor-list"><div class="ctor-item"><code class="ctor-sig">Ok(a)</code></div><div class="ctor-item"><code class="ctor-sig">Err(String)</code></div></div></div></div><div class="fn-card" id="TomlValue"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub type TomlValue</code></pre></div><div class="fn-card-body"><div class="ctor-list"><div class="ctor-item"><code class="ctor-sig">TomlString(String)</code></div><div class="ctor-item"><code class="ctor-sig">TomlInt(Int)</code></div><div class="ctor-item"><code class="ctor-sig">TomlBool(Bool)</code></div><div class="ctor-item"><code class="ctor-sig">TomlArray(List(TomlValue))</code></div><div class="ctor-item"><code class="ctor-sig">TomlTable(List(#(String, TomlValue)))</code></div></div></div></div></div><div class="items-section"><h3>Functions</h3><div class="fn-card" id="parse"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub fn parse(input: String) -&gt; Parsed(TomlValue)</code></pre></div></div><div class="fn-card" id="get_string"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub fn get_string(t: TomlValue, key: String) -&gt; Parsed(String)</code></pre></div></div><div class="fn-card" id="get_int"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub fn get_int(t: TomlValue, key: String) -&gt; Parsed(Int)</code></pre></div></div><div class="fn-card" id="get_bool"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub fn get_bool(t: TomlValue, key: String) -&gt; Parsed(Bool)</code></pre></div></div><div class="fn-card" id="get_table"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub fn get_table(t: TomlValue, key: String) -&gt; Parsed(TomlValue)</code></pre></div></div><div class="fn-card" id="get_array"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub fn get_array(t: TomlValue, key: String) -&gt; Parsed(List(TomlValue))</code></pre></div></div><div class="fn-card" id="unwrap_table"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub fn unwrap_table(r: Parsed(TomlValue)) -&gt; TomlValue</code></pre></div></div><div class="fn-card" id="unwrap_string"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub fn unwrap_string(r: Parsed(String)) -&gt; String</code></pre></div></div><div class="fn-card" id="unwrap_int"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub fn unwrap_int(r: Parsed(Int)) -&gt; Int</code></pre></div></div><div class="fn-card" id="unwrap_bool"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub fn unwrap_bool(r: Parsed(Bool)) -&gt; Bool</code></pre></div></div><div class="fn-card" id="is_ok"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub fn is_ok(r: Parsed(a)) -&gt; Bool</code></pre></div></div><div class="fn-card" id="is_err"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub fn is_err(r: Parsed(a)) -&gt; Bool</code></pre></div></div><div class="fn-card" id="err_msg"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub fn err_msg(r: Parsed(a)) -&gt; String</code></pre></div></div></div></section></main></div>
+<div class="theme-corner"><button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch to light theme"><span class="theme-toggle-icon" aria-hidden="true"></span></button></div><button class="sidebar-burger" id="sidebar-burger" aria-label="Menu"><span></span><span></span><span></span></button><div class="layout"><aside class="sidebar" id="page-sidebar"><a href="index.html" class="sidebar-back">&larr; Package overview</a><div class="sidebar-pkg"><div class="sidebar-pkg-name">parsetoml</div><div class="sidebar-pkg-ver">v0.1.0 &middot; API Reference</div></div><div class="sidebar-section-label">parsetoml</div><p class="sidebar-subcat">Types</p><ul class="sidebar-nav"><li><a href="#Parsed" class="fn-link">Parsed</a></li><li><a href="#TomlValue" class="fn-link">TomlValue</a></li></ul><p class="sidebar-subcat">Functions</p><ul class="sidebar-nav"><li><a href="#parse" class="fn-link">parse</a></li><li><a href="#get_string" class="fn-link">get_string</a></li><li><a href="#get_int" class="fn-link">get_int</a></li><li><a href="#get_bool" class="fn-link">get_bool</a></li><li><a href="#get_table" class="fn-link">get_table</a></li><li><a href="#get_array" class="fn-link">get_array</a></li><li><a href="#unwrap_table" class="fn-link">unwrap_table</a></li><li><a href="#unwrap_string" class="fn-link">unwrap_string</a></li><li><a href="#unwrap_int" class="fn-link">unwrap_int</a></li><li><a href="#unwrap_bool" class="fn-link">unwrap_bool</a></li><li><a href="#is_ok" class="fn-link">is_ok</a></li><li><a href="#is_err" class="fn-link">is_err</a></li><li><a href="#err_msg" class="fn-link">err_msg</a></li></ul></aside><div class="spacer" aria-hidden="true"></div><main class="main"><div class="breadcrumb"><a href="index.html">parsetoml</a><span>/</span><span>Docs</span></div><div class="page-head"><h1><span>parsetoml</span> &mdash; API Reference</h1><p>TOML parsing for Donna</p><div class="ver-row"><span class="ver-chip current">v0.1.0</span><span class="ver-chip">MIT</span><a href="https://github.com/donna-lang/parsetoml" class="ver-chip ver-chip-link">Repository &rarr;</a></div></div><section class="module-section" id="parsetoml"><h2>parsetoml</h2><div class="module-doc"><p>parsetoml</p>
+<p><code>parsetoml</code> is a small native Donna TOML parser for configuration files.</p>
+<p>Supported:</p>
+<ul>
+<li>Basic strings with common escape sequences.</li>
+<li>Literal strings.</li>
+<li>Integers, including negative integers.</li>
+<li>Booleans.</li>
+<li>Arrays, including nested arrays.</li>
+<li>Inline tables.</li>
+<li>Table headers and nested table headers.</li>
+<li>Line comments and inline comments.</li>
+</ul>
+<p>Not supported yet: floats, dates, multi-line strings, and
+<code>[[array-of-tables]]</code>.</p>
+<pre><code class="language-donna">import parsetoml
+
+let src = &quot;name = \&quot;Donna\&quot;\n[build]\noutput = \&quot;public\&quot;&quot;
+let toml = parsetoml.unwrap_table(parsetoml.parse(src))
+let name = parsetoml.get_string(toml, &quot;name&quot;) |&gt; parsetoml.unwrap_string
+</code></pre>
+</div><div class="items-section"><h3>Types</h3><div class="fn-card" id="Parsed"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub type Parsed(a)</code></pre></div><div class="fn-card-body"><div class="fn-desc"><p>Result returned by the parser and typed getter functions.</p>
+<p><code>Ok(value)</code> means the operation succeeded. <code>Err(message)</code> carries a human
+readable parse or lookup error.</p>
+<pre><code class="language-donna">import parsetoml
+
+pub fn parsed_ok() -&gt; Bool:
+  parsetoml.parse(&quot;name = \&quot;site\&quot;&quot;) |&gt; parsetoml.is_ok
+</code></pre>
+</div><div class="ctor-list"><div class="ctor-item"><code class="ctor-sig">Ok(a)</code></div><div class="ctor-item"><code class="ctor-sig">Err(String)</code></div></div></div></div><div class="fn-card" id="TomlValue"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub type TomlValue</code></pre></div><div class="fn-card-body"><div class="fn-desc"><p>TOML value tree produced by <code>parse</code>.</p>
+<p>Tables are represented as a list of key/value pairs. Nested sections become
+nested <code>TomlTable</code> values.</p>
+<pre><code class="language-donna">import parsetoml
+
+pub fn manual_value() -&gt; parsetoml.TomlValue:
+  parsetoml.TomlString(&quot;hello&quot;)
+</code></pre>
+</div><div class="ctor-list"><div class="ctor-item"><code class="ctor-sig">TomlString(String)</code></div><div class="ctor-item"><code class="ctor-sig">TomlInt(Int)</code></div><div class="ctor-item"><code class="ctor-sig">TomlBool(Bool)</code></div><div class="ctor-item"><code class="ctor-sig">TomlArray(List(TomlValue))</code></div><div class="ctor-item"><code class="ctor-sig">TomlTable(List(#(String, TomlValue)))</code></div></div></div></div></div><div class="items-section"><h3>Functions</h3><div class="fn-card" id="parse"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub fn parse(input: String) -&gt; Parsed(TomlValue)</code></pre></div><div class="fn-desc"><p>Parse a TOML document string into a <code>TomlTable</code>.</p>
+<p>The parser returns <code>Err(message)</code> instead of panicking when it finds invalid
+syntax. Use the typed getters to read values from the returned table.</p>
+<pre><code class="language-donna">import parsetoml
+
+pub fn parse_name() -&gt; String:
+  let toml = parsetoml.unwrap_table(parsetoml.parse(&quot;name = \&quot;site\&quot;&quot;))
+  parsetoml.get_string(toml, &quot;name&quot;) |&gt; parsetoml.unwrap_string
+</code></pre>
+</div></div><div class="fn-card" id="get_string"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub fn get_string(t: TomlValue, key: String) -&gt; Parsed(String)</code></pre></div><div class="fn-desc"><p>Read a string value from a TOML table by key.</p>
+<p>Returns an error when the key does not exist or when the value is not a
+<code>TomlString</code>.</p>
+<pre><code class="language-donna">import parsetoml
+
+pub fn package_name() -&gt; String:
+  let toml = parsetoml.unwrap_table(parsetoml.parse(&quot;name = \&quot;demo\&quot;&quot;))
+  parsetoml.get_string(toml, &quot;name&quot;) |&gt; parsetoml.unwrap_string
+</code></pre>
+</div></div><div class="fn-card" id="get_int"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub fn get_int(t: TomlValue, key: String) -&gt; Parsed(Int)</code></pre></div><div class="fn-desc"><p>Read an integer value from a TOML table by key.</p>
+<p>Returns an error when the key does not exist or when the value is not a
+<code>TomlInt</code>.</p>
+<pre><code class="language-donna">import parsetoml
+
+pub fn menu_weight() -&gt; Int:
+  let toml = parsetoml.unwrap_table(parsetoml.parse(&quot;weight = 10&quot;))
+  parsetoml.get_int(toml, &quot;weight&quot;) |&gt; parsetoml.unwrap_int
+</code></pre>
+</div></div><div class="fn-card" id="get_bool"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub fn get_bool(t: TomlValue, key: String) -&gt; Parsed(Bool)</code></pre></div><div class="fn-desc"><p>Read a boolean value from a TOML table by key.</p>
+<p>Returns an error when the key does not exist or when the value is not a
+<code>TomlBool</code>.</p>
+<pre><code class="language-donna">import parsetoml
+
+pub fn drafts_enabled() -&gt; Bool:
+  let toml = parsetoml.unwrap_table(parsetoml.parse(&quot;draft = false&quot;))
+  parsetoml.get_bool(toml, &quot;draft&quot;) |&gt; parsetoml.unwrap_bool
+</code></pre>
+</div></div><div class="fn-card" id="get_table"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub fn get_table(t: TomlValue, key: String) -&gt; Parsed(TomlValue)</code></pre></div><div class="fn-desc"><p>Read a nested table from a TOML table by key.</p>
+<p>This is used for section headers such as <code>[build]</code> and for inline tables
+such as <code>pkg = { path = &quot;../pkg&quot; }</code>.</p>
+<pre><code class="language-donna">import parsetoml
+
+pub fn output_dir() -&gt; String:
+  let toml = parsetoml.unwrap_table(parsetoml.parse(&quot;[build]\noutput = \&quot;public\&quot;&quot;))
+  case parsetoml.get_table(toml, &quot;build&quot;):
+    parsetoml.Err(_) -&gt; &quot;&quot;
+    parsetoml.Ok(build) -&gt;
+      parsetoml.get_string(build, &quot;output&quot;) |&gt; parsetoml.unwrap_string
+</code></pre>
+</div></div><div class="fn-card" id="get_array"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub fn get_array(t: TomlValue, key: String) -&gt; Parsed(List(TomlValue))</code></pre></div><div class="fn-desc"><p>Read an array value from a TOML table by key.</p>
+<p>Arrays contain <code>TomlValue</code> items, so callers can pattern match on each item
+to read strings, integers, booleans, nested arrays, or nested tables.</p>
+<pre><code class="language-donna">import parsetoml
+
+pub fn first_tag() -&gt; String:
+  let toml = parsetoml.unwrap_table(parsetoml.parse(&quot;tags = [\&quot;donna\&quot;, \&quot;toml\&quot;]&quot;))
+  case parsetoml.get_array(toml, &quot;tags&quot;):
+    parsetoml.Err(_) -&gt; &quot;&quot;
+    parsetoml.Ok(tags) -&gt;
+      case tags:
+        [parsetoml.TomlString(tag), .._] -&gt; tag
+        _ -&gt; &quot;&quot;
+</code></pre>
+</div></div><div class="fn-card" id="unwrap_table"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub fn unwrap_table(r: Parsed(TomlValue)) -&gt; TomlValue</code></pre></div><div class="fn-desc"><p>Extract a table from a parsed TOML result.</p>
+<p>This helper is intentionally forgiving: it returns an empty table when the
+result is an error. Use <code>is_err</code> and <code>err_msg</code> when the caller needs to
+preserve parse failures.</p>
+<pre><code class="language-donna">import parsetoml
+
+pub fn empty_on_error() -&gt; parsetoml.TomlValue:
+  parsetoml.unwrap_table(parsetoml.parse(&quot;name&quot;))
+</code></pre>
+</div></div><div class="fn-card" id="unwrap_string"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub fn unwrap_string(r: Parsed(String)) -&gt; String</code></pre></div><div class="fn-desc"><p>Extract a string from a parsed string result.</p>
+<p>This helper returns the string value on success. On error it returns a
+string prefixed with <code>__err:</code> so test output and simple pipelines still show
+the failure message.</p>
+<pre><code class="language-donna">import parsetoml
+
+pub fn read_name() -&gt; String:
+  let toml = parsetoml.unwrap_table(parsetoml.parse(&quot;name = \&quot;site\&quot;&quot;))
+  parsetoml.get_string(toml, &quot;name&quot;) |&gt; parsetoml.unwrap_string
+</code></pre>
+</div></div><div class="fn-card" id="unwrap_int"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub fn unwrap_int(r: Parsed(Int)) -&gt; Int</code></pre></div><div class="fn-desc"><p>Extract an integer from a parsed integer result.</p>
+<p>This helper returns <code>0</code> when the result is an error. Use it when a fallback
+value is acceptable.</p>
+<pre><code class="language-donna">import parsetoml
+
+pub fn read_weight() -&gt; Int:
+  let toml = parsetoml.unwrap_table(parsetoml.parse(&quot;weight = 20&quot;))
+  parsetoml.get_int(toml, &quot;weight&quot;) |&gt; parsetoml.unwrap_int
+</code></pre>
+</div></div><div class="fn-card" id="unwrap_bool"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub fn unwrap_bool(r: Parsed(Bool)) -&gt; Bool</code></pre></div><div class="fn-desc"><p>Extract a boolean from a parsed boolean result.</p>
+<p>This helper returns <code>False</code> when the result is an error. Use it when a
+missing or invalid boolean should behave like <code>false</code>.</p>
+<pre><code class="language-donna">import parsetoml
+
+pub fn read_draft() -&gt; Bool:
+  let toml = parsetoml.unwrap_table(parsetoml.parse(&quot;draft = true&quot;))
+  parsetoml.get_bool(toml, &quot;draft&quot;) |&gt; parsetoml.unwrap_bool
+</code></pre>
+</div></div><div class="fn-card" id="is_ok"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub fn is_ok(r: Parsed(a)) -&gt; Bool</code></pre></div><div class="fn-desc"><p>Return <code>True</code> when a parsed result is <code>Ok</code>.</p>
+<p>This is useful in tests and in branches where only success/failure matters.</p>
+<pre><code class="language-donna">import parsetoml
+
+pub fn config_is_valid() -&gt; Bool:
+  parsetoml.parse(&quot;name = \&quot;site\&quot;&quot;) |&gt; parsetoml.is_ok
+</code></pre>
+</div></div><div class="fn-card" id="is_err"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub fn is_err(r: Parsed(a)) -&gt; Bool</code></pre></div><div class="fn-desc"><p>Return <code>True</code> when a parsed result is <code>Err</code>.</p>
+<pre><code class="language-donna">import parsetoml
+
+pub fn config_is_invalid() -&gt; Bool:
+  parsetoml.parse(&quot;name&quot;) |&gt; parsetoml.is_err
+</code></pre>
+</div></div><div class="fn-card" id="err_msg"><div class="code-block"><div class="code-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><pre><code>pub fn err_msg(r: Parsed(a)) -&gt; String</code></pre></div><div class="fn-desc"><p>Return the error message from a parsed result.</p>
+<p>Returns an empty string when the result is <code>Ok</code>.</p>
+<pre><code class="language-donna">import parsetoml
+
+pub fn parse_error() -&gt; String:
+  parsetoml.parse(&quot;name&quot;) |&gt; parsetoml.err_msg
+</code></pre>
+</div></div></div></section></main></div>
 <footer class="site-footer">Generated by <a href="https://github.com/donna-lang/donna">Donna</a></footer>
 <script>(() => {
   function setTheme(theme) {

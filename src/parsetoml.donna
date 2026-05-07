@@ -1,38 +1,64 @@
-// parsetoml — TOML parser for Donna.
-//
-// Supported:
-//   name = "value"          basic strings (with escape sequences)
-//   name = 'value'          literal strings (no escaping)
-//   count = 42              integers (including negative)
-//   flag = true             booleans
-//   items = ["a", "b"]      arrays (including nested)
-//   pkg = { path = "." }    inline tables
-//   [section]               table headers
-//   [section.sub]           nested table headers
-//   # comment               line comments
-//   key = "value" # inline  inline comments
-//
-// Not supported: floats, dates, multi-line strings, [[array-of-tables]].
+//// parsetoml
+////
+//// `parsetoml` is a small native Donna TOML parser for configuration files.
+////
+//// Supported:
+////
+//// - Basic strings with common escape sequences.
+//// - Literal strings.
+//// - Integers, including negative integers.
+//// - Booleans.
+//// - Arrays, including nested arrays.
+//// - Inline tables.
+//// - Table headers and nested table headers.
+//// - Line comments and inline comments.
+////
+//// Not supported yet: floats, dates, multi-line strings, and
+//// `[[array-of-tables]]`.
+////
+//// ```donna
+//// import parsetoml
+////
+//// let src = "name = \"Donna\"\n[build]\noutput = \"public\""
+//// let toml = parsetoml.unwrap_table(parsetoml.parse(src))
+//// let name = parsetoml.get_string(toml, "name") |> parsetoml.unwrap_string
+//// ```
 
 import donna/string
 import donna/list
 
-// ── Result type ───────────────────────────────────────────────────────────────
-
+/// Result returned by the parser and typed getter functions.
+///
+/// `Ok(value)` means the operation succeeded. `Err(message)` carries a human
+/// readable parse or lookup error.
+///
+/// ```donna
+/// import parsetoml
+///
+/// pub fn parsed_ok() -> Bool:
+///   parsetoml.parse("name = \"site\"") |> parsetoml.is_ok
+/// ```
 pub type Parsed(a):
   Ok(a)
   Err(String)
 
-// ── Value type ────────────────────────────────────────────────────────────────
-
+/// TOML value tree produced by `parse`.
+///
+/// Tables are represented as a list of key/value pairs. Nested sections become
+/// nested `TomlTable` values.
+///
+/// ```donna
+/// import parsetoml
+///
+/// pub fn manual_value() -> parsetoml.TomlValue:
+///   parsetoml.TomlString("hello")
+/// ```
 pub type TomlValue:
   TomlString(String)
   TomlInt(Int)
   TomlBool(Bool)
   TomlArray(List(TomlValue))
   TomlTable(List(#(String, TomlValue)))
-
-// ── Internal types ────────────────────────────────────────────────────────────
 
 type Lookup:
   Found(TomlValue)
@@ -42,16 +68,35 @@ type SubTable:
   GotPairs(List(#(String, TomlValue)))
   NoPairs
 
-// ── Public parse API ──────────────────────────────────────────────────────────
-
-// Parse a TOML document string into a TomlTable.
+/// Parse a TOML document string into a `TomlTable`.
+///
+/// The parser returns `Err(message)` instead of panicking when it finds invalid
+/// syntax. Use the typed getters to read values from the returned table.
+///
+/// ```donna
+/// import parsetoml
+///
+/// pub fn parse_name() -> String:
+///   let toml = parsetoml.unwrap_table(parsetoml.parse("name = \"site\""))
+///   parsetoml.get_string(toml, "name") |> parsetoml.unwrap_string
+/// ```
 pub fn parse(input: String) -> Parsed(TomlValue):
   case parse_doc(string.split(input, "\n"), [], []):
     Err(e) -> Err(e)
     Ok(entries) -> Ok(build_table(list.reverse(entries)))
 
-// ── Public getter API ─────────────────────────────────────────────────────────
-
+/// Read a string value from a TOML table by key.
+///
+/// Returns an error when the key does not exist or when the value is not a
+/// `TomlString`.
+///
+/// ```donna
+/// import parsetoml
+///
+/// pub fn package_name() -> String:
+///   let toml = parsetoml.unwrap_table(parsetoml.parse("name = \"demo\""))
+///   parsetoml.get_string(toml, "name") |> parsetoml.unwrap_string
+/// ```
 pub fn get_string(t: TomlValue, key: String) -> Parsed(String):
   case table_lookup(t, key):
     NotFound -> Err("key '" <> key <> "' not found")
@@ -60,6 +105,18 @@ pub fn get_string(t: TomlValue, key: String) -> Parsed(String):
         TomlString(s) -> Ok(s)
         _ -> Err("'" <> key <> "' is not a string")
 
+/// Read an integer value from a TOML table by key.
+///
+/// Returns an error when the key does not exist or when the value is not a
+/// `TomlInt`.
+///
+/// ```donna
+/// import parsetoml
+///
+/// pub fn menu_weight() -> Int:
+///   let toml = parsetoml.unwrap_table(parsetoml.parse("weight = 10"))
+///   parsetoml.get_int(toml, "weight") |> parsetoml.unwrap_int
+/// ```
 pub fn get_int(t: TomlValue, key: String) -> Parsed(Int):
   case table_lookup(t, key):
     NotFound -> Err("key '" <> key <> "' not found")
@@ -68,6 +125,18 @@ pub fn get_int(t: TomlValue, key: String) -> Parsed(Int):
         TomlInt(n) -> Ok(n)
         _ -> Err("'" <> key <> "' is not an integer")
 
+/// Read a boolean value from a TOML table by key.
+///
+/// Returns an error when the key does not exist or when the value is not a
+/// `TomlBool`.
+///
+/// ```donna
+/// import parsetoml
+///
+/// pub fn drafts_enabled() -> Bool:
+///   let toml = parsetoml.unwrap_table(parsetoml.parse("draft = false"))
+///   parsetoml.get_bool(toml, "draft") |> parsetoml.unwrap_bool
+/// ```
 pub fn get_bool(t: TomlValue, key: String) -> Parsed(Bool):
   case table_lookup(t, key):
     NotFound -> Err("key '" <> key <> "' not found")
@@ -76,6 +145,21 @@ pub fn get_bool(t: TomlValue, key: String) -> Parsed(Bool):
         TomlBool(b) -> Ok(b)
         _ -> Err("'" <> key <> "' is not a boolean")
 
+/// Read a nested table from a TOML table by key.
+///
+/// This is used for section headers such as `[build]` and for inline tables
+/// such as `pkg = { path = "../pkg" }`.
+///
+/// ```donna
+/// import parsetoml
+///
+/// pub fn output_dir() -> String:
+///   let toml = parsetoml.unwrap_table(parsetoml.parse("[build]\noutput = \"public\""))
+///   case parsetoml.get_table(toml, "build"):
+///     parsetoml.Err(_) -> ""
+///     parsetoml.Ok(build) ->
+///       parsetoml.get_string(build, "output") |> parsetoml.unwrap_string
+/// ```
 pub fn get_table(t: TomlValue, key: String) -> Parsed(TomlValue):
   case table_lookup(t, key):
     NotFound -> Err("key '" <> key <> "' not found")
@@ -84,6 +168,23 @@ pub fn get_table(t: TomlValue, key: String) -> Parsed(TomlValue):
         TomlTable(_) -> Ok(v)
         _ -> Err("'" <> key <> "' is not a table")
 
+/// Read an array value from a TOML table by key.
+///
+/// Arrays contain `TomlValue` items, so callers can pattern match on each item
+/// to read strings, integers, booleans, nested arrays, or nested tables.
+///
+/// ```donna
+/// import parsetoml
+///
+/// pub fn first_tag() -> String:
+///   let toml = parsetoml.unwrap_table(parsetoml.parse("tags = [\"donna\", \"toml\"]"))
+///   case parsetoml.get_array(toml, "tags"):
+///     parsetoml.Err(_) -> ""
+///     parsetoml.Ok(tags) ->
+///       case tags:
+///         [parsetoml.TomlString(tag), .._] -> tag
+///         _ -> ""
+/// ```
 pub fn get_array(t: TomlValue, key: String) -> Parsed(List(TomlValue)):
   case table_lookup(t, key):
     NotFound -> Err("key '" <> key <> "' not found")
@@ -92,46 +193,123 @@ pub fn get_array(t: TomlValue, key: String) -> Parsed(List(TomlValue)):
         TomlArray(xs) -> Ok(xs)
         _ -> Err("'" <> key <> "' is not an array")
 
-// ── Unwrap helpers (for use in tests and pipelines) ───────────────────────────
-
+/// Extract a table from a parsed TOML result.
+///
+/// This helper is intentionally forgiving: it returns an empty table when the
+/// result is an error. Use `is_err` and `err_msg` when the caller needs to
+/// preserve parse failures.
+///
+/// ```donna
+/// import parsetoml
+///
+/// pub fn empty_on_error() -> parsetoml.TomlValue:
+///   parsetoml.unwrap_table(parsetoml.parse("name"))
+/// ```
 pub fn unwrap_table(r: Parsed(TomlValue)) -> TomlValue:
   case r:
     Ok(t) -> t
     Err(_) -> TomlTable([])
 
+/// Extract a string from a parsed string result.
+///
+/// This helper returns the string value on success. On error it returns a
+/// string prefixed with `__err:` so test output and simple pipelines still show
+/// the failure message.
+///
+/// ```donna
+/// import parsetoml
+///
+/// pub fn read_name() -> String:
+///   let toml = parsetoml.unwrap_table(parsetoml.parse("name = \"site\""))
+///   parsetoml.get_string(toml, "name") |> parsetoml.unwrap_string
+/// ```
 pub fn unwrap_string(r: Parsed(String)) -> String:
   case r:
     Ok(s) -> s
     Err(e) -> "__err:" <> e
 
+/// Extract an integer from a parsed integer result.
+///
+/// This helper returns `0` when the result is an error. Use it when a fallback
+/// value is acceptable.
+///
+/// ```donna
+/// import parsetoml
+///
+/// pub fn read_weight() -> Int:
+///   let toml = parsetoml.unwrap_table(parsetoml.parse("weight = 20"))
+///   parsetoml.get_int(toml, "weight") |> parsetoml.unwrap_int
+/// ```
 pub fn unwrap_int(r: Parsed(Int)) -> Int:
   case r:
     Ok(n) -> n
     Err(_) -> 0
 
+/// Extract a boolean from a parsed boolean result.
+///
+/// This helper returns `False` when the result is an error. Use it when a
+/// missing or invalid boolean should behave like `false`.
+///
+/// ```donna
+/// import parsetoml
+///
+/// pub fn read_draft() -> Bool:
+///   let toml = parsetoml.unwrap_table(parsetoml.parse("draft = true"))
+///   parsetoml.get_bool(toml, "draft") |> parsetoml.unwrap_bool
+/// ```
 pub fn unwrap_bool(r: Parsed(Bool)) -> Bool:
   case r:
     Ok(b) -> b
     Err(_) -> False
 
+/// Return `True` when a parsed result is `Ok`.
+///
+/// This is useful in tests and in branches where only success/failure matters.
+///
+/// ```donna
+/// import parsetoml
+///
+/// pub fn config_is_valid() -> Bool:
+///   parsetoml.parse("name = \"site\"") |> parsetoml.is_ok
+/// ```
 pub fn is_ok(r: Parsed(a)) -> Bool:
   case r:
     Ok(_) -> True
     Err(_) -> False
 
+/// Return `True` when a parsed result is `Err`.
+///
+/// ```donna
+/// import parsetoml
+///
+/// pub fn config_is_invalid() -> Bool:
+///   parsetoml.parse("name") |> parsetoml.is_err
+/// ```
 pub fn is_err(r: Parsed(a)) -> Bool:
   case r:
     Ok(_) -> False
     Err(_) -> True
 
+/// Return the error message from a parsed result.
+///
+/// Returns an empty string when the result is `Ok`.
+///
+/// ```donna
+/// import parsetoml
+///
+/// pub fn parse_error() -> String:
+///   parsetoml.parse("name") |> parsetoml.err_msg
+/// ```
 pub fn err_msg(r: Parsed(a)) -> String:
   case r:
     Ok(_) -> ""
     Err(e) -> e
 
-// ── Document parsing ──────────────────────────────────────────────────────────
-
-fn parse_doc(lines: List(String), path: List(String), entries: List(#(List(String), TomlValue))) -> Parsed(List(#(List(String), TomlValue))):
+fn parse_doc(
+  lines: List(String),
+  path: List(String),
+  entries: List(#(List(String), TomlValue))
+) -> Parsed(List(#(List(String), TomlValue))):
   case lines:
     [] -> Ok(entries)
     [line, ..rest] ->
@@ -140,22 +318,42 @@ fn parse_doc(lines: List(String), path: List(String), entries: List(#(List(Strin
         True -> parse_doc(rest, path, entries)
         False -> process_line(trimmed, rest, path, entries)
 
-fn process_line(trimmed: String, rest: List(String), path: List(String), entries: List(#(List(String), TomlValue))) -> Parsed(List(#(List(String), TomlValue))):
+fn process_line(
+  trimmed: String,
+  rest: List(String),
+  path: List(String),
+  entries: List(#(List(String), TomlValue))
+) -> Parsed(List(#(List(String), TomlValue))):
   case string.starts_with(trimmed, "[["):
     True -> parse_doc(rest, path, entries)
     False -> process_non_array_table(trimmed, rest, path, entries)
 
-fn process_non_array_table(trimmed: String, rest: List(String), path: List(String), entries: List(#(List(String), TomlValue))) -> Parsed(List(#(List(String), TomlValue))):
+fn process_non_array_table(
+  trimmed: String,
+  rest: List(String),
+  path: List(String),
+  entries: List(#(List(String), TomlValue))
+) -> Parsed(List(#(List(String), TomlValue))):
   case string.starts_with(trimmed, "["):
     True -> apply_section(trimmed, rest, path, entries)
     False -> apply_kv(trimmed, rest, path, entries)
 
-fn apply_section(trimmed: String, rest: List(String), path: List(String), entries: List(#(List(String), TomlValue))) -> Parsed(List(#(List(String), TomlValue))):
+fn apply_section(
+  trimmed: String,
+  rest: List(String),
+  path: List(String),
+  entries: List(#(List(String), TomlValue))
+) -> Parsed(List(#(List(String), TomlValue))):
   case parse_section(trimmed):
     Err(e) -> Err(e)
     Ok(new_path) -> parse_doc(rest, new_path, entries)
 
-fn apply_kv(trimmed: String, rest: List(String), path: List(String), entries: List(#(List(String), TomlValue))) -> Parsed(List(#(List(String), TomlValue))):
+fn apply_kv(
+  trimmed: String,
+  rest: List(String),
+  path: List(String),
+  entries: List(#(List(String), TomlValue))
+) -> Parsed(List(#(List(String), TomlValue))):
   case parse_kv(trimmed, path):
     Err(e) -> Err(e)
     Ok(entry) -> parse_doc(rest, path, [entry, ..entries])
@@ -172,7 +370,10 @@ fn parse_section(line: String) -> Parsed(List(String)):
       let content = string.trim(string.slice(line, 1, close - 1))
       Ok(list.map(string.split(content, "."), trim_str))
 
-fn parse_kv(line: String, path: List(String)) -> Parsed(#(List(String), TomlValue)):
+fn parse_kv(
+  line: String,
+  path: List(String)
+) -> Parsed(#(List(String), TomlValue)):
   let slen = string.length(line)
   let eq = find_outside_str(line, 61, 0, slen)
   case eq == -1:
@@ -192,18 +393,16 @@ fn parse_key_str(s: String) -> Parsed(List(String)):
     True -> Err("empty key")
     False -> Ok(list.map(string.split(s, "."), trim_str))
 
-// ── Value parsing ─────────────────────────────────────────────────────────────
-
 fn parse_value(s: String) -> Parsed(TomlValue):
   case string.length(s):
     0 -> Err("empty value")
     _ ->
       case string.char_at(s, 0):
-        34  -> parse_dq_string(s)
-        39  -> parse_sq_string(s)
-        91  -> parse_array(s)
+        34 -> parse_dq_string(s)
+        39 -> parse_sq_string(s)
+        91 -> parse_array(s)
         123 -> parse_inline_table(s)
-        _   -> parse_scalar(s)
+        _ -> parse_scalar(s)
 
 fn parse_dq_string(s: String) -> Parsed(TomlValue):
   case read_dq(s, 1, string.length(s), ""):
@@ -222,12 +421,12 @@ fn read_dq(s: String, pos: Int, slen: Int, acc: String) -> Parsed(String):
             True -> Err("unexpected end after \\")
             False ->
               let ch = case string.char_at(s, pos + 1):
-                34  -> "\""
-                92  -> "\\"
+                34 -> "\""
+                92 -> "\\"
                 110 -> "\n"
                 116 -> "\t"
                 114 -> "\r"
-                _   -> string.slice(s, pos + 1, 1)
+                _ -> string.slice(s, pos + 1, 1)
               read_dq(s, pos + 2, slen, acc <> ch)
         _ -> read_dq(s, pos + 1, slen, acc <> string.slice(s, pos, 1))
 
@@ -250,7 +449,12 @@ fn parse_array(s: String) -> Parsed(TomlValue):
         Err(e) -> Err(e)
         Ok(elems) -> Ok(TomlArray(elems))
 
-fn parse_arr_elems(s: String, pos: Int, slen: Int, acc: List(TomlValue)) -> Parsed(List(TomlValue)):
+fn parse_arr_elems(
+  s: String,
+  pos: Int,
+  slen: Int,
+  acc: List(TomlValue)
+) -> Parsed(List(TomlValue)):
   let start = skip_ws(s, pos, slen)
   case start >= slen:
     True -> Ok(list.reverse(acc))
@@ -274,7 +478,12 @@ fn parse_inline_table(s: String) -> Parsed(TomlValue):
         Err(e) -> Err(e)
         Ok(pairs) -> Ok(TomlTable(pairs))
 
-fn parse_inline_pairs(s: String, pos: Int, slen: Int, acc: List(#(String, TomlValue))) -> Parsed(List(#(String, TomlValue))):
+fn parse_inline_pairs(
+  s: String,
+  pos: Int,
+  slen: Int,
+  acc: List(#(String, TomlValue))
+) -> Parsed(List(#(String, TomlValue))):
   let start = skip_ws(s, pos, slen)
   case start >= slen:
     True -> Ok(list.reverse(acc))
@@ -325,19 +534,24 @@ fn parse_int(s: String) -> Parsed(TomlValue):
                 True -> Ok(TomlInt(0 - n))
                 False -> Ok(TomlInt(n))
 
-// ── Table assembly ────────────────────────────────────────────────────────────
-
 fn build_table(entries: List(#(List(String), TomlValue))) -> TomlValue:
   TomlTable(fold_entries(entries, []))
 
-fn fold_entries(entries: List(#(List(String), TomlValue)), acc: List(#(String, TomlValue))) -> List(#(String, TomlValue)):
+fn fold_entries(
+  entries: List(#(List(String), TomlValue)),
+  acc: List(#(String, TomlValue))
+) -> List(#(String, TomlValue)):
   case entries:
     [] -> acc
     [entry, ..rest] ->
       let #(path, val) = entry
       fold_entries(rest, set_nested(acc, path, val))
 
-fn set_nested(table: List(#(String, TomlValue)), path: List(String), val: TomlValue) -> List(#(String, TomlValue)):
+fn set_nested(
+  table: List(#(String, TomlValue)),
+  path: List(String),
+  val: TomlValue
+) -> List(#(String, TomlValue)):
   case path:
     [] -> table
     [key] -> upsert(table, key, val)
@@ -347,10 +561,19 @@ fn set_nested(table: List(#(String, TomlValue)), path: List(String), val: TomlVa
         GotPairs(pairs) -> pairs
       upsert(table, key, TomlTable(set_nested(sub, rest_path, val)))
 
-fn upsert(table: List(#(String, TomlValue)), key: String, val: TomlValue) -> List(#(String, TomlValue)):
+fn upsert(
+  table: List(#(String, TomlValue)),
+  key: String,
+  val: TomlValue
+) -> List(#(String, TomlValue)):
   upsert_loop(table, key, val, [])
 
-fn upsert_loop(table: List(#(String, TomlValue)), key: String, val: TomlValue, acc: List(#(String, TomlValue))) -> List(#(String, TomlValue)):
+fn upsert_loop(
+  table: List(#(String, TomlValue)),
+  key: String,
+  val: TomlValue,
+  acc: List(#(String, TomlValue))
+) -> List(#(String, TomlValue)):
   case table:
     [] -> list.reverse([#(key, val), ..acc])
     [p, ..rest] ->
@@ -371,8 +594,6 @@ fn get_sub_pairs(table: List(#(String, TomlValue)), key: String) -> SubTable:
             _ -> NoPairs
         False -> get_sub_pairs(rest, key)
 
-// ── Lookup ────────────────────────────────────────────────────────────────────
-
 fn table_lookup(t: TomlValue, key: String) -> Lookup:
   case t:
     TomlTable(pairs) -> lookup_pairs(pairs, key)
@@ -387,8 +608,6 @@ fn lookup_pairs(pairs: List(#(String, TomlValue)), key: String) -> Lookup:
         True -> Found(v)
         False -> lookup_pairs(rest, key)
 
-// ── Character / string helpers ────────────────────────────────────────────────
-
 fn trim_str(s: String) -> String:
   string.trim(s)
 
@@ -401,7 +620,6 @@ fn skip_ws(s: String, pos: Int, slen: Int) -> Int:
         True -> skip_ws(s, pos + 1, slen)
         False -> pos
 
-// Find a character outside quoted strings.  Returns -1 if not found.
 fn find_outside_str(s: String, target: Int, pos: Int, slen: Int) -> Int:
   fos_loop(s, target, pos, slen, 0)
 
@@ -425,9 +643,8 @@ fn fos_loop(s: String, target: Int, pos: Int, slen: Int, quote: Int) -> Int:
               case c:
                 34 -> fos_loop(s, target, pos + 1, slen, 34)
                 39 -> fos_loop(s, target, pos + 1, slen, 39)
-                _  -> fos_loop(s, target, pos + 1, slen, 0)
+                _ -> fos_loop(s, target, pos + 1, slen, 0)
 
-// Find a literal character (does not respect quoting).
 fn find_char(s: String, target: Int, pos: Int, slen: Int) -> Int:
   case pos >= slen:
     True -> -1
@@ -436,9 +653,13 @@ fn find_char(s: String, target: Int, pos: Int, slen: Int) -> Int:
         True -> pos
         False -> find_char(s, target, pos + 1, slen)
 
-// Scan to the next top-level comma; returns #(pos, 1) if comma found,
-// #(slen, 0) if end of string.  Respects nesting and quoted strings.
-fn scan_elem(s: String, pos: Int, slen: Int, depth: Int, quote: Int) -> #(Int, Int):
+fn scan_elem(
+  s: String,
+  pos: Int,
+  slen: Int,
+  depth: Int,
+  quote: Int
+) -> #(Int, Int):
   case pos >= slen:
     True -> #(slen, 0)
     False ->
@@ -453,19 +674,18 @@ fn scan_elem(s: String, pos: Int, slen: Int, depth: Int, quote: Int) -> #(Int, I
                 False -> scan_elem(s, pos + 1, slen, depth, quote)
         False ->
           case c:
-            34  -> scan_elem(s, pos + 1, slen, depth, 34)
-            39  -> scan_elem(s, pos + 1, slen, depth, 39)
-            91  -> scan_elem(s, pos + 1, slen, depth + 1, 0)
+            34 -> scan_elem(s, pos + 1, slen, depth, 34)
+            39 -> scan_elem(s, pos + 1, slen, depth, 39)
+            91 -> scan_elem(s, pos + 1, slen, depth + 1, 0)
             123 -> scan_elem(s, pos + 1, slen, depth + 1, 0)
-            93  -> scan_elem(s, pos + 1, slen, depth - 1, 0)
+            93 -> scan_elem(s, pos + 1, slen, depth - 1, 0)
             125 -> scan_elem(s, pos + 1, slen, depth - 1, 0)
-            44  ->
+            44 ->
               case depth == 0:
-                True  -> #(pos, 1)
+                True -> #(pos, 1)
                 False -> scan_elem(s, pos + 1, slen, depth, 0)
             _ -> scan_elem(s, pos + 1, slen, depth, 0)
 
-// Strip an inline comment (# outside a string).
 fn strip_comment(s: String) -> String:
   sc_loop(s, 0, string.length(s), 0)
 
@@ -487,7 +707,7 @@ fn sc_loop(s: String, pos: Int, slen: Int, quote: Int) -> String:
             34 -> sc_loop(s, pos + 1, slen, 34)
             39 -> sc_loop(s, pos + 1, slen, 39)
             35 -> string.trim(string.slice(s, 0, pos))
-            _  -> sc_loop(s, pos + 1, slen, 0)
+            _ -> sc_loop(s, pos + 1, slen, 0)
 
 fn all_digits(s: String, pos: Int, slen: Int) -> Bool:
   case pos >= slen:
