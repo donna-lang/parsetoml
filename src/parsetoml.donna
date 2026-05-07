@@ -1,0 +1,508 @@
+// parsetoml — TOML parser for Donna.
+//
+// Supported:
+//   name = "value"          basic strings (with escape sequences)
+//   name = 'value'          literal strings (no escaping)
+//   count = 42              integers (including negative)
+//   flag = true             booleans
+//   items = ["a", "b"]      arrays (including nested)
+//   pkg = { path = "." }    inline tables
+//   [section]               table headers
+//   [section.sub]           nested table headers
+//   # comment               line comments
+//   key = "value" # inline  inline comments
+//
+// Not supported: floats, dates, multi-line strings, [[array-of-tables]].
+
+import donna/string
+import donna/list
+
+// ── Result type ───────────────────────────────────────────────────────────────
+
+pub type Parsed(a):
+  Ok(a)
+  Err(String)
+
+// ── Value type ────────────────────────────────────────────────────────────────
+
+pub type TomlValue:
+  TomlString(String)
+  TomlInt(Int)
+  TomlBool(Bool)
+  TomlArray(List(TomlValue))
+  TomlTable(List(#(String, TomlValue)))
+
+// ── Internal types ────────────────────────────────────────────────────────────
+
+type Lookup:
+  Found(TomlValue)
+  NotFound
+
+type SubTable:
+  GotPairs(List(#(String, TomlValue)))
+  NoPairs
+
+// ── Public parse API ──────────────────────────────────────────────────────────
+
+// Parse a TOML document string into a TomlTable.
+pub fn parse(input: String) -> Parsed(TomlValue):
+  case parse_doc(string.split(input, "\n"), [], []):
+    Err(e) -> Err(e)
+    Ok(entries) -> Ok(build_table(list.reverse(entries)))
+
+// ── Public getter API ─────────────────────────────────────────────────────────
+
+pub fn get_string(t: TomlValue, key: String) -> Parsed(String):
+  case table_lookup(t, key):
+    NotFound -> Err("key '" <> key <> "' not found")
+    Found(v) ->
+      case v:
+        TomlString(s) -> Ok(s)
+        _ -> Err("'" <> key <> "' is not a string")
+
+pub fn get_int(t: TomlValue, key: String) -> Parsed(Int):
+  case table_lookup(t, key):
+    NotFound -> Err("key '" <> key <> "' not found")
+    Found(v) ->
+      case v:
+        TomlInt(n) -> Ok(n)
+        _ -> Err("'" <> key <> "' is not an integer")
+
+pub fn get_bool(t: TomlValue, key: String) -> Parsed(Bool):
+  case table_lookup(t, key):
+    NotFound -> Err("key '" <> key <> "' not found")
+    Found(v) ->
+      case v:
+        TomlBool(b) -> Ok(b)
+        _ -> Err("'" <> key <> "' is not a boolean")
+
+pub fn get_table(t: TomlValue, key: String) -> Parsed(TomlValue):
+  case table_lookup(t, key):
+    NotFound -> Err("key '" <> key <> "' not found")
+    Found(v) ->
+      case v:
+        TomlTable(_) -> Ok(v)
+        _ -> Err("'" <> key <> "' is not a table")
+
+pub fn get_array(t: TomlValue, key: String) -> Parsed(List(TomlValue)):
+  case table_lookup(t, key):
+    NotFound -> Err("key '" <> key <> "' not found")
+    Found(v) ->
+      case v:
+        TomlArray(xs) -> Ok(xs)
+        _ -> Err("'" <> key <> "' is not an array")
+
+// ── Unwrap helpers (for use in tests and pipelines) ───────────────────────────
+
+pub fn unwrap_table(r: Parsed(TomlValue)) -> TomlValue:
+  case r:
+    Ok(t) -> t
+    Err(_) -> TomlTable([])
+
+pub fn unwrap_string(r: Parsed(String)) -> String:
+  case r:
+    Ok(s) -> s
+    Err(e) -> "__err:" <> e
+
+pub fn unwrap_int(r: Parsed(Int)) -> Int:
+  case r:
+    Ok(n) -> n
+    Err(_) -> 0
+
+pub fn unwrap_bool(r: Parsed(Bool)) -> Bool:
+  case r:
+    Ok(b) -> b
+    Err(_) -> False
+
+pub fn is_ok(r: Parsed(a)) -> Bool:
+  case r:
+    Ok(_) -> True
+    Err(_) -> False
+
+pub fn is_err(r: Parsed(a)) -> Bool:
+  case r:
+    Ok(_) -> False
+    Err(_) -> True
+
+pub fn err_msg(r: Parsed(a)) -> String:
+  case r:
+    Ok(_) -> ""
+    Err(e) -> e
+
+// ── Document parsing ──────────────────────────────────────────────────────────
+
+fn parse_doc(lines: List(String), path: List(String), entries: List(#(List(String), TomlValue))) -> Parsed(List(#(List(String), TomlValue))):
+  case lines:
+    [] -> Ok(entries)
+    [line, ..rest] ->
+      let trimmed = string.trim(line)
+      case is_empty_or_comment(trimmed):
+        True -> parse_doc(rest, path, entries)
+        False -> process_line(trimmed, rest, path, entries)
+
+fn process_line(trimmed: String, rest: List(String), path: List(String), entries: List(#(List(String), TomlValue))) -> Parsed(List(#(List(String), TomlValue))):
+  case string.starts_with(trimmed, "[["):
+    True -> parse_doc(rest, path, entries)
+    False -> process_non_array_table(trimmed, rest, path, entries)
+
+fn process_non_array_table(trimmed: String, rest: List(String), path: List(String), entries: List(#(List(String), TomlValue))) -> Parsed(List(#(List(String), TomlValue))):
+  case string.starts_with(trimmed, "["):
+    True -> apply_section(trimmed, rest, path, entries)
+    False -> apply_kv(trimmed, rest, path, entries)
+
+fn apply_section(trimmed: String, rest: List(String), path: List(String), entries: List(#(List(String), TomlValue))) -> Parsed(List(#(List(String), TomlValue))):
+  case parse_section(trimmed):
+    Err(e) -> Err(e)
+    Ok(new_path) -> parse_doc(rest, new_path, entries)
+
+fn apply_kv(trimmed: String, rest: List(String), path: List(String), entries: List(#(List(String), TomlValue))) -> Parsed(List(#(List(String), TomlValue))):
+  case parse_kv(trimmed, path):
+    Err(e) -> Err(e)
+    Ok(entry) -> parse_doc(rest, path, [entry, ..entries])
+
+fn is_empty_or_comment(s: String) -> Bool:
+  string.equal(s, "") || string.starts_with(s, "#")
+
+fn parse_section(line: String) -> Parsed(List(String)):
+  let slen = string.length(line)
+  let close = find_char(line, 93, 1, slen)
+  case close == -1:
+    True -> Err("unclosed '[' in: " <> line)
+    False ->
+      let content = string.trim(string.slice(line, 1, close - 1))
+      Ok(list.map(string.split(content, "."), trim_str))
+
+fn parse_kv(line: String, path: List(String)) -> Parsed(#(List(String), TomlValue)):
+  let slen = string.length(line)
+  let eq = find_outside_str(line, 61, 0, slen)
+  case eq == -1:
+    True -> Err("expected '=' in: " <> line)
+    False ->
+      let raw_key = string.trim(string.slice(line, 0, eq))
+      let raw_val = string.trim(string.slice(line, eq + 1, slen - eq - 1))
+      case parse_key_str(raw_key):
+        Err(e) -> Err(e)
+        Ok(key_parts) ->
+          case parse_value(strip_comment(raw_val)):
+            Err(e) -> Err(e)
+            Ok(val) -> Ok(#(list.append(path, key_parts), val))
+
+fn parse_key_str(s: String) -> Parsed(List(String)):
+  case string.equal(s, ""):
+    True -> Err("empty key")
+    False -> Ok(list.map(string.split(s, "."), trim_str))
+
+// ── Value parsing ─────────────────────────────────────────────────────────────
+
+fn parse_value(s: String) -> Parsed(TomlValue):
+  case string.length(s):
+    0 -> Err("empty value")
+    _ ->
+      case string.char_at(s, 0):
+        34  -> parse_dq_string(s)
+        39  -> parse_sq_string(s)
+        91  -> parse_array(s)
+        123 -> parse_inline_table(s)
+        _   -> parse_scalar(s)
+
+fn parse_dq_string(s: String) -> Parsed(TomlValue):
+  case read_dq(s, 1, string.length(s), ""):
+    Err(e) -> Err(e)
+    Ok(content) -> Ok(TomlString(content))
+
+fn read_dq(s: String, pos: Int, slen: Int, acc: String) -> Parsed(String):
+  case pos >= slen:
+    True -> Err("unterminated string")
+    False ->
+      let c = string.char_at(s, pos)
+      case c:
+        34 -> Ok(acc)
+        92 ->
+          case pos + 1 >= slen:
+            True -> Err("unexpected end after \\")
+            False ->
+              let ch = case string.char_at(s, pos + 1):
+                34  -> "\""
+                92  -> "\\"
+                110 -> "\n"
+                116 -> "\t"
+                114 -> "\r"
+                _   -> string.slice(s, pos + 1, 1)
+              read_dq(s, pos + 2, slen, acc <> ch)
+        _ -> read_dq(s, pos + 1, slen, acc <> string.slice(s, pos, 1))
+
+fn parse_sq_string(s: String) -> Parsed(TomlValue):
+  let slen = string.length(s)
+  case slen < 2:
+    True -> Err("unterminated literal string")
+    False ->
+      let close = find_char(s, 39, 1, slen)
+      case close == -1:
+        True -> Err("unterminated literal string")
+        False -> Ok(TomlString(string.slice(s, 1, close - 1)))
+
+fn parse_array(s: String) -> Parsed(TomlValue):
+  let inner = string.trim(string.slice(s, 1, string.length(s) - 2))
+  case string.equal(inner, ""):
+    True -> Ok(TomlArray([]))
+    False ->
+      case parse_arr_elems(inner, 0, string.length(inner), []):
+        Err(e) -> Err(e)
+        Ok(elems) -> Ok(TomlArray(elems))
+
+fn parse_arr_elems(s: String, pos: Int, slen: Int, acc: List(TomlValue)) -> Parsed(List(TomlValue)):
+  let start = skip_ws(s, pos, slen)
+  case start >= slen:
+    True -> Ok(list.reverse(acc))
+    False ->
+      let #(end_pos, has_comma) = scan_elem(s, start, slen, 0, 0)
+      let elem = string.trim(string.slice(s, start, end_pos - start))
+      case parse_value(elem):
+        Err(e) -> Err(e)
+        Ok(val) ->
+          let next = case has_comma:
+            1 -> end_pos + 1
+            _ -> slen
+          parse_arr_elems(s, next, slen, [val, ..acc])
+
+fn parse_inline_table(s: String) -> Parsed(TomlValue):
+  let inner = string.trim(string.slice(s, 1, string.length(s) - 2))
+  case string.equal(inner, ""):
+    True -> Ok(TomlTable([]))
+    False ->
+      case parse_inline_pairs(inner, 0, string.length(inner), []):
+        Err(e) -> Err(e)
+        Ok(pairs) -> Ok(TomlTable(pairs))
+
+fn parse_inline_pairs(s: String, pos: Int, slen: Int, acc: List(#(String, TomlValue))) -> Parsed(List(#(String, TomlValue))):
+  let start = skip_ws(s, pos, slen)
+  case start >= slen:
+    True -> Ok(list.reverse(acc))
+    False ->
+      let #(end_pos, has_comma) = scan_elem(s, start, slen, 0, 0)
+      let pair_str = string.trim(string.slice(s, start, end_pos - start))
+      let pslen = string.length(pair_str)
+      let eq = find_outside_str(pair_str, 61, 0, pslen)
+      case eq == -1:
+        True -> Err("expected '=' in pair: " <> pair_str)
+        False ->
+          let key = string.trim(string.slice(pair_str, 0, eq))
+          let vs = string.trim(string.slice(pair_str, eq + 1, pslen - eq - 1))
+          case parse_value(vs):
+            Err(e) -> Err(e)
+            Ok(val) ->
+              let next = case has_comma:
+                1 -> end_pos + 1
+                _ -> slen
+              parse_inline_pairs(s, next, slen, [#(key, val), ..acc])
+
+fn parse_scalar(s: String) -> Parsed(TomlValue):
+  case string.equal(s, "true"):
+    True -> Ok(TomlBool(True))
+    False ->
+      case string.equal(s, "false"):
+        True -> Ok(TomlBool(False))
+        False -> parse_int(s)
+
+fn parse_int(s: String) -> Parsed(TomlValue):
+  let slen = string.length(s)
+  case slen:
+    0 -> Err("empty integer")
+    _ ->
+      let first = string.char_at(s, 0)
+      let neg = first == 45
+      let start = case neg:
+        True -> 1
+        False -> 0
+      case start >= slen:
+        True -> Err("invalid integer: " <> s)
+        False ->
+          case all_digits(s, start, slen):
+            False -> Err("invalid value: " <> s)
+            True ->
+              let n = parse_digits(s, start, slen, 0)
+              case neg:
+                True -> Ok(TomlInt(0 - n))
+                False -> Ok(TomlInt(n))
+
+// ── Table assembly ────────────────────────────────────────────────────────────
+
+fn build_table(entries: List(#(List(String), TomlValue))) -> TomlValue:
+  TomlTable(fold_entries(entries, []))
+
+fn fold_entries(entries: List(#(List(String), TomlValue)), acc: List(#(String, TomlValue))) -> List(#(String, TomlValue)):
+  case entries:
+    [] -> acc
+    [entry, ..rest] ->
+      let #(path, val) = entry
+      fold_entries(rest, set_nested(acc, path, val))
+
+fn set_nested(table: List(#(String, TomlValue)), path: List(String), val: TomlValue) -> List(#(String, TomlValue)):
+  case path:
+    [] -> table
+    [key] -> upsert(table, key, val)
+    [key, ..rest_path] ->
+      let sub = case get_sub_pairs(table, key):
+        NoPairs -> []
+        GotPairs(pairs) -> pairs
+      upsert(table, key, TomlTable(set_nested(sub, rest_path, val)))
+
+fn upsert(table: List(#(String, TomlValue)), key: String, val: TomlValue) -> List(#(String, TomlValue)):
+  upsert_loop(table, key, val, [])
+
+fn upsert_loop(table: List(#(String, TomlValue)), key: String, val: TomlValue, acc: List(#(String, TomlValue))) -> List(#(String, TomlValue)):
+  case table:
+    [] -> list.reverse([#(key, val), ..acc])
+    [p, ..rest] ->
+      let #(k, _) = p
+      case string.equal(k, key):
+        True -> list.append(list.reverse(acc), [#(key, val), ..rest])
+        False -> upsert_loop(rest, key, val, [p, ..acc])
+
+fn get_sub_pairs(table: List(#(String, TomlValue)), key: String) -> SubTable:
+  case table:
+    [] -> NoPairs
+    [p, ..rest] ->
+      let #(k, v) = p
+      case string.equal(k, key):
+        True ->
+          case v:
+            TomlTable(pairs) -> GotPairs(pairs)
+            _ -> NoPairs
+        False -> get_sub_pairs(rest, key)
+
+// ── Lookup ────────────────────────────────────────────────────────────────────
+
+fn table_lookup(t: TomlValue, key: String) -> Lookup:
+  case t:
+    TomlTable(pairs) -> lookup_pairs(pairs, key)
+    _ -> NotFound
+
+fn lookup_pairs(pairs: List(#(String, TomlValue)), key: String) -> Lookup:
+  case pairs:
+    [] -> NotFound
+    [p, ..rest] ->
+      let #(k, v) = p
+      case string.equal(k, key):
+        True -> Found(v)
+        False -> lookup_pairs(rest, key)
+
+// ── Character / string helpers ────────────────────────────────────────────────
+
+fn trim_str(s: String) -> String:
+  string.trim(s)
+
+fn skip_ws(s: String, pos: Int, slen: Int) -> Int:
+  case pos >= slen:
+    True -> pos
+    False ->
+      let c = string.char_at(s, pos)
+      case c == 32 || c == 9 || c == 13:
+        True -> skip_ws(s, pos + 1, slen)
+        False -> pos
+
+// Find a character outside quoted strings.  Returns -1 if not found.
+fn find_outside_str(s: String, target: Int, pos: Int, slen: Int) -> Int:
+  fos_loop(s, target, pos, slen, 0)
+
+fn fos_loop(s: String, target: Int, pos: Int, slen: Int, quote: Int) -> Int:
+  case pos >= slen:
+    True -> -1
+    False ->
+      let c = string.char_at(s, pos)
+      case quote != 0:
+        True ->
+          case c == 92 && quote == 34:
+            True -> fos_loop(s, target, pos + 2, slen, quote)
+            False ->
+              case c == quote:
+                True -> fos_loop(s, target, pos + 1, slen, 0)
+                False -> fos_loop(s, target, pos + 1, slen, quote)
+        False ->
+          case c == target:
+            True -> pos
+            False ->
+              case c:
+                34 -> fos_loop(s, target, pos + 1, slen, 34)
+                39 -> fos_loop(s, target, pos + 1, slen, 39)
+                _  -> fos_loop(s, target, pos + 1, slen, 0)
+
+// Find a literal character (does not respect quoting).
+fn find_char(s: String, target: Int, pos: Int, slen: Int) -> Int:
+  case pos >= slen:
+    True -> -1
+    False ->
+      case string.char_at(s, pos) == target:
+        True -> pos
+        False -> find_char(s, target, pos + 1, slen)
+
+// Scan to the next top-level comma; returns #(pos, 1) if comma found,
+// #(slen, 0) if end of string.  Respects nesting and quoted strings.
+fn scan_elem(s: String, pos: Int, slen: Int, depth: Int, quote: Int) -> #(Int, Int):
+  case pos >= slen:
+    True -> #(slen, 0)
+    False ->
+      let c = string.char_at(s, pos)
+      case quote != 0:
+        True ->
+          case c == 92 && quote == 34:
+            True -> scan_elem(s, pos + 2, slen, depth, quote)
+            False ->
+              case c == quote:
+                True -> scan_elem(s, pos + 1, slen, depth, 0)
+                False -> scan_elem(s, pos + 1, slen, depth, quote)
+        False ->
+          case c:
+            34  -> scan_elem(s, pos + 1, slen, depth, 34)
+            39  -> scan_elem(s, pos + 1, slen, depth, 39)
+            91  -> scan_elem(s, pos + 1, slen, depth + 1, 0)
+            123 -> scan_elem(s, pos + 1, slen, depth + 1, 0)
+            93  -> scan_elem(s, pos + 1, slen, depth - 1, 0)
+            125 -> scan_elem(s, pos + 1, slen, depth - 1, 0)
+            44  ->
+              case depth == 0:
+                True  -> #(pos, 1)
+                False -> scan_elem(s, pos + 1, slen, depth, 0)
+            _ -> scan_elem(s, pos + 1, slen, depth, 0)
+
+// Strip an inline comment (# outside a string).
+fn strip_comment(s: String) -> String:
+  sc_loop(s, 0, string.length(s), 0)
+
+fn sc_loop(s: String, pos: Int, slen: Int, quote: Int) -> String:
+  case pos >= slen:
+    True -> s
+    False ->
+      let c = string.char_at(s, pos)
+      case quote != 0:
+        True ->
+          case c == 92 && quote == 34:
+            True -> sc_loop(s, pos + 2, slen, quote)
+            False ->
+              case c == quote:
+                True -> sc_loop(s, pos + 1, slen, 0)
+                False -> sc_loop(s, pos + 1, slen, quote)
+        False ->
+          case c:
+            34 -> sc_loop(s, pos + 1, slen, 34)
+            39 -> sc_loop(s, pos + 1, slen, 39)
+            35 -> string.trim(string.slice(s, 0, pos))
+            _  -> sc_loop(s, pos + 1, slen, 0)
+
+fn all_digits(s: String, pos: Int, slen: Int) -> Bool:
+  case pos >= slen:
+    True -> True
+    False ->
+      let c = string.char_at(s, pos)
+      case c >= 48 && c <= 57:
+        True -> all_digits(s, pos + 1, slen)
+        False -> False
+
+fn parse_digits(s: String, pos: Int, slen: Int, acc: Int) -> Int:
+  case pos >= slen:
+    True -> acc
+    False ->
+      let c = string.char_at(s, pos)
+      case c >= 48 && c <= 57:
+        True -> parse_digits(s, pos + 1, slen, acc * 10 + c - 48)
+        False -> acc

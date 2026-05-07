@@ -1,0 +1,157 @@
+import parsetoml
+import unittest/should
+import donna/bool
+
+pub fn string_basic_test() -> String:
+  let t = parsetoml.unwrap_table(parsetoml.parse("name = \"hello\""))
+  parsetoml.get_string(t, "name") |> parsetoml.unwrap_string |> should.equal_string("hello")
+
+pub fn string_empty_test() -> String:
+  let t = parsetoml.unwrap_table(parsetoml.parse("name = \"\""  ))
+  parsetoml.get_string(t, "name") |> parsetoml.unwrap_string |> should.equal_string("")
+
+pub fn string_escape_quote_test() -> String:
+  let t = parsetoml.unwrap_table(parsetoml.parse("val = \"say \\\"hi\\\"\""))
+  parsetoml.get_string(t, "val") |> parsetoml.unwrap_string |> should.equal_string("say \"hi\"")
+
+pub fn string_literal_test() -> String:
+  let t = parsetoml.unwrap_table(parsetoml.parse("path = '../lib'"))
+  parsetoml.get_string(t, "path") |> parsetoml.unwrap_string |> should.equal_string("../lib")
+
+pub fn string_inline_comment_test() -> String:
+  let t = parsetoml.unwrap_table(parsetoml.parse("name = \"foo\" # comment"))
+  parsetoml.get_string(t, "name") |> parsetoml.unwrap_string |> should.equal_string("foo")
+
+pub fn int_positive_test() -> String:
+  let t = parsetoml.unwrap_table(parsetoml.parse("count = 42"))
+  parsetoml.get_int(t, "count") |> parsetoml.unwrap_int |> should.equal_int(42)
+
+pub fn int_zero_test() -> String:
+  let t = parsetoml.unwrap_table(parsetoml.parse("count = 0"))
+  parsetoml.get_int(t, "count") |> parsetoml.unwrap_int |> should.equal_int(0)
+
+pub fn int_negative_test() -> String:
+  let t = parsetoml.unwrap_table(parsetoml.parse("offset = -7"))
+  parsetoml.get_int(t, "offset") |> parsetoml.unwrap_int |> should.equal_int(-7)
+
+pub fn bool_true_test() -> String:
+  let t = parsetoml.unwrap_table(parsetoml.parse("flag = true"))
+  parsetoml.get_bool(t, "flag") |> parsetoml.unwrap_bool |> bool.to_int |> should.be_true()
+
+pub fn bool_false_test() -> String:
+  let t = parsetoml.unwrap_table(parsetoml.parse("flag = false"))
+  parsetoml.get_bool(t, "flag") |> parsetoml.unwrap_bool |> bool.to_int |> should.be_false()
+
+pub fn array_empty_test() -> String:
+  let t = parsetoml.unwrap_table(parsetoml.parse("items = []"))
+  case parsetoml.get_array(t, "items"):
+    parsetoml.Err(_) -> should.fail("expected Ok")
+    parsetoml.Ok(xs) -> should.equal_int(0, 0)
+
+pub fn array_strings_test() -> String:
+  let t = parsetoml.unwrap_table(parsetoml.parse("flags = [\"-lm\", \"-lz\"]"))
+  case parsetoml.get_array(t, "flags"):
+    parsetoml.Err(e) -> should.fail(e)
+    parsetoml.Ok(xs) ->
+      case xs:
+        [parsetoml.TomlString(a), parsetoml.TomlString(b)] ->
+          should.equal_string(a, "-lm") <> should.equal_string(b, "-lz")
+        _ -> should.fail("unexpected array shape")
+
+pub fn array_ints_test() -> String:
+  let t = parsetoml.unwrap_table(parsetoml.parse("nums = [1, 2, 3]"))
+  case parsetoml.get_array(t, "nums"):
+    parsetoml.Err(e) -> should.fail(e)
+    parsetoml.Ok(xs) ->
+      case xs:
+        [parsetoml.TomlInt(a), parsetoml.TomlInt(b), parsetoml.TomlInt(c)] ->
+          should.equal_int(a, 1) <> should.equal_int(b, 2) <> should.equal_int(c, 3)
+        _ -> should.fail("unexpected array shape")
+
+pub fn inline_table_test() -> String:
+  let t = parsetoml.unwrap_table(parsetoml.parse("pkg = { path = \"../lib\" }"))
+  case parsetoml.get_table(t, "pkg"):
+    parsetoml.Err(e) -> should.fail(e)
+    parsetoml.Ok(sub) ->
+      parsetoml.get_string(sub, "path") |> parsetoml.unwrap_string |> should.equal_string("../lib")
+
+pub fn inline_table_multi_test() -> String:
+  let src = "pkg = { path = \"../lib\", version = \"1.0\" }"
+  let t = parsetoml.unwrap_table(parsetoml.parse(src))
+  case parsetoml.get_table(t, "pkg"):
+    parsetoml.Err(e) -> should.fail(e)
+    parsetoml.Ok(sub) ->
+      should.equal_string(parsetoml.get_string(sub, "path") |> parsetoml.unwrap_string, "../lib")
+      <> should.equal_string(parsetoml.get_string(sub, "version") |> parsetoml.unwrap_string, "1.0")
+
+pub fn section_test() -> String:
+  let src = "[build]\noutput = \"./out\""
+  let t = parsetoml.unwrap_table(parsetoml.parse(src))
+  case parsetoml.get_table(t, "build"):
+    parsetoml.Err(e) -> should.fail(e)
+    parsetoml.Ok(build) ->
+      parsetoml.get_string(build, "output") |> parsetoml.unwrap_string |> should.equal_string("./out")
+
+pub fn section_nested_test() -> String:
+  let src = "[a.b]\nval = 99"
+  let t = parsetoml.unwrap_table(parsetoml.parse(src))
+  case parsetoml.get_table(t, "a"):
+    parsetoml.Err(e) -> should.fail(e)
+    parsetoml.Ok(a) ->
+      case parsetoml.get_table(a, "b"):
+        parsetoml.Err(e) -> should.fail(e)
+        parsetoml.Ok(b) ->
+          parsetoml.get_int(b, "val") |> parsetoml.unwrap_int |> should.equal_int(99)
+
+pub fn multiple_sections_test() -> String:
+  let src = "name = \"app\"\n" <> "[deps]\nfoo = \"1.0\"\n" <> "[build]\nmode = \"release\""
+  let t = parsetoml.unwrap_table(parsetoml.parse(src))
+  let name = parsetoml.get_string(t, "name") |> parsetoml.unwrap_string
+  let mode = case parsetoml.get_table(t, "build"):
+    parsetoml.Err(_) -> "?"
+    parsetoml.Ok(b) -> parsetoml.get_string(b, "mode") |> parsetoml.unwrap_string
+  should.equal_string(name, "app") <> should.equal_string(mode, "release")
+
+pub fn comment_line_test() -> String:
+  let src = "# a comment\nname = \"ok\""
+  let t = parsetoml.unwrap_table(parsetoml.parse(src))
+  parsetoml.get_string(t, "name") |> parsetoml.unwrap_string |> should.equal_string("ok")
+
+pub fn comment_blank_lines_test() -> String:
+  let src = "\nname = \"ok\"\n\n"
+  let t = parsetoml.unwrap_table(parsetoml.parse(src))
+  parsetoml.get_string(t, "name") |> parsetoml.unwrap_string |> should.equal_string("ok")
+
+pub fn error_missing_key_test() -> String:
+  let t = parsetoml.unwrap_table(parsetoml.parse("x = 1"))
+  parsetoml.get_string(t, "missing") |> parsetoml.is_err |> bool.to_int |> should.be_true()
+
+pub fn error_wrong_type_test() -> String:
+  let t = parsetoml.unwrap_table(parsetoml.parse("x = 42"))
+  parsetoml.get_string(t, "x") |> parsetoml.is_err |> bool.to_int |> should.be_true()
+
+pub fn donna_toml_test() -> String:
+  let src = "name = \"argparse\"\nversion = \"0.1.0\"\n[dependencies]\ndonna = { path = \"../donna_stdlib\" }\n[dev-dependencies]\nunittest = { path = \"../unittest\" }\n"
+  let t = parsetoml.unwrap_table(parsetoml.parse(src))
+  let name = parsetoml.get_string(t, "name") |> parsetoml.unwrap_string
+  let dep_path = case parsetoml.get_table(t, "dependencies"):
+    parsetoml.Err(_) -> "?"
+    parsetoml.Ok(deps) ->
+      case parsetoml.get_table(deps, "donna"):
+        parsetoml.Err(_) -> "?"
+        parsetoml.Ok(pkg) -> parsetoml.get_string(pkg, "path") |> parsetoml.unwrap_string
+  should.equal_string(name, "argparse") <> should.equal_string(dep_path, "../donna_stdlib")
+
+pub fn link_flags_test() -> String:
+  let src = "[build]\nlink_flags = [\"-lm\", \"-lz\"]"
+  let t = parsetoml.unwrap_table(parsetoml.parse(src))
+  case parsetoml.get_table(t, "build"):
+    parsetoml.Err(e) -> should.fail(e)
+    parsetoml.Ok(build) ->
+      case parsetoml.get_array(build, "link_flags"):
+        parsetoml.Err(e) -> should.fail(e)
+        parsetoml.Ok(flags) ->
+          case flags:
+            [parsetoml.TomlString(a), parsetoml.TomlString(b)] ->
+              should.equal_string(a, "-lm") <> should.equal_string(b, "-lz")
+            _ -> should.fail("unexpected flags shape")
