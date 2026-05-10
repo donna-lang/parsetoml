@@ -1,10 +1,10 @@
 # parsetoml
 
 <img src="https://img.shields.io/badge/Donna-parsetoml-FF6347?style=for-the-badge" alt="Donna parsetoml"/>
-
 <a href="https://donna-lang.github.io/parsetoml/">
   <img src="https://img.shields.io/badge/Docs-Read-2F81F7?style=for-the-badge" alt="Docs - Read"/>
 </a>
+<img src="https://img.shields.io/github/actions/workflow/status/donna-lang/parsetoml/test.yml?branch=main&label=Test&style=for-the-badge" alt="Test status"/>
 
 TOML parsing for the [Donna](https://github.com/donna-lang/donna) programming language.
 
