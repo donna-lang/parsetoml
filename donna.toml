@@ -1,5 +1,5 @@
 name = "parsetoml"
-version = "0.1.0"
+version = "0.1.1"
 description = "TOML parsing for Donna"
 licences = ["MIT"]
 repository = { type = "github", user = "donna-lang", repo = "parsetoml" }

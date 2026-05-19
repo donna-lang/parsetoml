@@ -341,7 +341,7 @@ fn process_non_array_table(
 fn apply_section(
   trimmed: String,
   rest: List(String),
-  path: List(String),
+  _path: List(String),
   entries: List(#(List(String), TomlValue))
 ) -> Parsed(List(#(List(String), TomlValue))):
   case parse_section(trimmed):

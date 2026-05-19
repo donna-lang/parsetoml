@@ -2,6 +2,11 @@
 
 All notable changes to `parsetoml` will be documented in this file.
 
+## [0.1.1] — 2026-05-19
+
+### Fixed
+- Fixed compiler warning: prefixed unused `path` parameter with `_` in `apply_section`.
+
 ## [0.1.0] — 2026-05-07
 
 Initial release.
