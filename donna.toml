@@ -9,4 +9,4 @@ links = [{ title = "Docs", href = "https://donna-lang.github.io/parsetoml/" }]
 donna = { git = "https://github.com/donna-lang/donna_stdlib", version = ">=0.3.0 and <1.0.0" }
 
 [dev-dependencies]
-unittest = { git = "https://github.com/donna-lang/unittest", version = ">=0.1.0 and <1.0.0" }
+unittest = { git = "https://github.com/donna-lang/unittest", version = ">=0.2.0 and <1.0.0" }
