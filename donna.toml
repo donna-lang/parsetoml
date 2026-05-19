@@ -6,7 +6,7 @@ repository = { type = "github", user = "donna-lang", repo = "parsetoml" }
 links = [{ title = "Docs", href = "https://donna-lang.github.io/parsetoml/" }]
 
 [dependencies]
-donna = { git = "https://github.com/donna-lang/donna_stdlib", version = ">=0.1.0 and <1.0.0" }
+donna = { git = "https://github.com/donna-lang/donna_stdlib", version = ">=0.3.0 and <1.0.0" }
 
 [dev-dependencies]
 unittest = { git = "https://github.com/donna-lang/unittest", version = ">=0.1.0 and <1.0.0" }
